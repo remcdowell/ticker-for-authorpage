@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>General Spectral Ticker Embed</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a0000; /* Dark, unsettling background */
+            color: #ff3333; /* Creepy red text */
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .ticker-container {
+            width: 100%;
+            height: 50px; /* Adjust height as needed for your ticker */
+            overflow: hidden;
+            background-color: #1a0000;
+            border: 1px solid #4d0000;
+            font-family: 'Courier New', Courier, monospace;
+            color: #ff3333;
+            padding: 10px 0;
+            box-sizing: border-box;
+            white-space: nowrap;
+            position: relative;
+            text-shadow: 0 0 5px #ff0000;
+        }
+
+        .ticker-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: none;
+        }
+
+        @keyframes scrollLeft {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ticker-container">
+        <div class="ticker-content" id="spectralTicker">
+            Loading transmissions...
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tickerElement = document.getElementById('spectralTicker');
+            let messages = [];
+            let currentMessageIndex = 0;
+            let animationDuration = 15;
+            const pauseDuration = 5000; // Your desired pause (e.g., 5 seconds)
+            const pixelsPerSecond = 80;
+
+            // --- Configuration for Message Source based on Date ---
+            const today = new Date();
+            const month = today.getMonth() + 1; // getMonth() returns 0-11, so add 1 for 1-12
+            const day = today.getDate();
+
+            let selectedMessageSourceUrl;
+
+            // --- DEFINE ALL YOUR MESSAGE FILE URLs HERE FOR THIS SPECIFIC SITE ---
+            // IMPORTANT: Replace with YOUR ACTUAL GitHub Pages URLs for this repository (e.g., ticker-for-remcdowell)!
+            // Make sure these JSON files exist in this repository!
+            const halloweenMessagesUrl = 'https://remcdowell.github.io/ticker-for-remcdowell/messages_halloween.json';
+            const christmasMessagesUrl = 'https://remcdowell.github.io/ticker-for-remcdowell/messages_christmas.json';
+            const defaultMessagesUrl = 'https://remcdowell.github.io/ticker-for-remcdowell/messages_default.json';
+
+
+            // --- Holiday Date Logic ---
+            // Halloween: October 25th - November 3rd (adjust as desired)
+            if (month === 10 && day >= 25 || month === 11 && day <= 3) {
+                selectedMessageSourceUrl = halloweenMessagesUrl;
+            }
+            // Christmas: December 15th - January 5th (adjust as desired)
+            else if (month === 12 && day >= 15 || month === 1 && day <= 5) {
+                selectedMessageSourceUrl = christmasMessagesUrl;
+            }
+            // Default messages for all other times
+            else {
+                selectedMessageSourceUrl = defaultMessagesUrl;
+            }
+
+            const messageSourceUrl = selectedMessageSourceUrl;
+            const messageSourceType = 'json'; // Assuming all your message files are JSON
+
+
+            async function fetchMessages() {
+                try {
+                    const response = await fetch(messageSourceUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status} - Check URL or file existence: ${messageSourceUrl}`);
+                    }
+
+                    if (messageSourceType === 'json') {
+                        const data = await response.json();
+                        messages = Array.isArray(data) ? data : data.messages || [];
+                    } else if (messageSourceType === 'text') {
+                        const text = await response.text();
+                        messages = text.split('\n').filter(line => line.trim() !== '');
+                    }
+
+                    if (messages.length > 0) {
+                        startTicker();
+                    } else {
+                        // Dynamically shows which file it tried to load if no messages found
+                        tickerElement.textContent = `No transmissions found for ${messageSourceUrl.split('/').pop().replace('messages_', '').replace('.json', '')}. Awaiting signals...`;
+                    }
+
+                } catch (error) {
+                    console.error("Failed to fetch transmissions:", error);
+                    tickerElement.textContent = `Error: Failed to receive transmissions. Signal lost. (${error.message})`;
+                }
+            }
+
+            function animateMessage() {
+                if (messages.length === 0) return;
+
+                const message = messages[currentMessageIndex];
+                tickerElement.textContent = message;
+
+                tickerElement.style.transform = 'translateX(100%)';
+                tickerElement.style.animation = 'none';
+
+                setTimeout(() => {
+                    const containerWidth = tickerElement.parentElement.offsetWidth;
+                    const contentWidth = tickerElement.scrollWidth;
+                    const totalDistance = containerWidth + contentWidth;
+
+                    animationDuration = totalDistance / pixelsPerSecond;
+
+                    tickerElement.style.animation = `scrollLeft ${animationDuration}s linear forwards`;
+
+                    tickerElement.onanimationend = () => {
+                        setTimeout(() => {
+                            currentMessageIndex = (currentMessageIndex + 1) % messages.length;
+                            animateMessage();
+                        }, pauseDuration);
+                    };
+                }, 50);
+            }
+
+            function startTicker() {
+                animateMessage();
+            }
+
+            fetchMessages();
+        });
+    </script>
+
+</body>
+</html>
